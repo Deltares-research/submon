@@ -1,0 +1,52 @@
+[[raster_config]]
+epsg = 32631
+unit = "mm/yr"
+
+
+
+[[gia]]
+stats = true
+
+[[gia.rasters]]
+path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_71p55.txt"
+epsg = 4326
+units = "mm/yr"
+reader_kwargs = {resolution = 1000, gridded = true}
+[[gia.rasters]]
+path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_96p55.txt"
+epsg = 4326
+units = "mm/yr"
+reader_kwargs = {resolution = 1000, gridded = true}
+[[gia.rasters]]
+path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_96p53.txt"
+epsg = 4326
+units = "mm/yr"
+reader_kwargs = {resolution = 1000, gridded = true}
+[[gia.rasters]]
+path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_96p52.txt"
+epsg = 4326
+units = "mm/yr"
+reader_kwargs = {resolution = 1000, gridded = true}
+
+
+
+[[tectonic]]
+stats = false
+
+[[tectonic.rasters]]
+path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/Long_term_basin_subsidence/max_subsidence_rate_1864_0.tif"
+epsg = 4326
+units = "mm/yr"
+stat = "max"
+[[tectonic.rasters]]
+path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/Long_term_basin_subsidence/mean_subsidence_rate_1864_0.tif"
+epsg = 4326
+units = "mm/yr"
+stat = "mean"
+[[tectonic.rasters]]
+path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/Long_term_basin_subsidence/min_subsidence_rate_1864_0.tif"
+epsg = 4326
+units = "mm/yr"
+stat = "min"
+
+
