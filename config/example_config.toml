@@ -1,7 +1,10 @@
+[investigated_areas]
+
+
+
 [raster_config]
 epsg = 32631
 unit = "mm/yr"
-
 
 
 [gia]
@@ -35,18 +38,25 @@ stats = false
 
 [[tectonic.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/Long_term_basin_subsidence/max_subsidence_rate_1864_0.tif"
-epsg = 4326
+epsg = 32631
 units = "mm/yr"
 stat = "max"
 [[tectonic.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/Long_term_basin_subsidence/mean_subsidence_rate_1864_0.tif"
-epsg = 4326
+epsg = 32631
 units = "mm/yr"
 stat = "mean"
 [[tectonic.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/Long_term_basin_subsidence/min_subsidence_rate_1864_0.tif"
-epsg = 4326
+epsg = 32631
 units = "mm/yr"
 stat = "min"
 
 
+[mining]
+stats = false
+
+[[mining.rasters]]
+path = "n:/Projects/11205000/11205236/C. Report - advise/3. Morfologie kust/Bodemdaling/Voor Erik - volumes/Basiskaarten daling door winning/voor2020_cm"
+epsg = 28992
+units = "cm/30yr"

@@ -102,10 +102,10 @@ def __xyz_gridded_points(data: pd.DataFrame) -> xr.DataArray:
         np.nanmax(data.y),
     )
 
-    sorted_data = data.sort_values(["y", "x"], ascending=[False, True])
+    sorted_data = data.sort_values(["y", "x"], ascending=[True, True])
 
     coord_x = np.unique(sorted_data["x"])
-    coord_y = np.unique(sorted_data["y"])[::-1]
+    coord_y = np.unique(sorted_data["y"])
 
     res_x = np.mean(np.diff(coord_x))
     res_y = np.mean(np.diff(coord_y))
