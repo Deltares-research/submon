@@ -11,13 +11,14 @@ DT = {
 
 
 def parse_dzdt_units(unit_str: str) -> tuple[str, str]:
-    """Parse a unit string into its value and unit components.
+    """
+    Parse a unit string into its length and time components.
 
     Args:
-        unit_str: The unit string to parse (e.g., "10 mm", "5 min").
+        unit_str: The unit string to parse (e.g., "mm/yr", "m/s").
 
     Returns:
-        A tuple containing the value and the unit (e.g., ("10", "mm")).
+        A tuple containing the length and time units (e.g., ("mm", "yr")).
     """
     parts = unit_str.strip().split("/")
     if len(parts) != 2:
@@ -27,7 +28,8 @@ def parse_dzdt_units(unit_str: str) -> tuple[str, str]:
 
 
 def calculate_dzdt_factor(dzdt_from: str, dzdt_to: str) -> float:
-    """Calculate the conversion factor from one dz/dt unit to another.
+    """
+    Calculate the conversion factor from one dz/dt unit to another.
 
     Args:
         dzdt_from: The original dz/dt unit (e.g., "mm/yr").

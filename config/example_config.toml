@@ -1,36 +1,36 @@
-[[raster_config]]
+[raster_config]
 epsg = 32631
 unit = "mm/yr"
 
 
 
-[[gia]]
+[gia]
 stats = true
 
 [[gia.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_71p55.txt"
 epsg = 4326
 units = "mm/yr"
-reader_kwargs = {resolution = 1000, gridded = true}
+reader_kwargs = {gridded = true}
 [[gia.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_96p55.txt"
 epsg = 4326
 units = "mm/yr"
-reader_kwargs = {resolution = 1000, gridded = true}
+reader_kwargs = {gridded = true}
 [[gia.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_96p53.txt"
 epsg = 4326
 units = "mm/yr"
-reader_kwargs = {resolution = 1000, gridded = true}
+reader_kwargs = {gridded = true}
 [[gia.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_96p52.txt"
 epsg = 4326
 units = "mm/yr"
-reader_kwargs = {resolution = 1000, gridded = true}
+reader_kwargs = {gridded = true}
 
 
 
-[[tectonic]]
+[tectonic]
 stats = false
 
 [[tectonic.rasters]]

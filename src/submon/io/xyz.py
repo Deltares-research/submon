@@ -11,7 +11,7 @@ from submon import utils
 
 def read_xyz(
     xyz_file: str | Path,
-    resolution: float | int,
+    resolution: float | int = None,
     gridded: bool = True,
     non_gridded_tolerance: float = 1,
 ):
@@ -22,8 +22,8 @@ def read_xyz(
     ----------
     xyz_file : str
         Path to the XYZ file. The file extension should be one of [".xyz", ".txt", ".csv", ".pts"].
-    resolution : float | int
-        The resolution for gridding the data.
+    resolution : float | int, optional
+        The resolution for gridding the data if `gridded` is False. This parameter is required if `gridded` is False.
     gridded : bool, optional
         If True, the data will be treated as already gridded points. If False, the data
         will be treated as random points. Default is True.
@@ -63,31 +63,27 @@ def read_xyz(
     # Reading the XYZ-file
     sep = utils.find_xyz_sep(xyz_file)
     if sep == " ":
-        df = pd.read_csv(
-            file, header=None, names=["x", "y", "z"], delim_whitespace=True
-        )
+        df = pd.read_csv(file, header=None, names=["x", "y", "z"], sep="\s+")
     else:
         df = pd.read_csv(file, sep=sep, header=None, names=["x", "y", "z"])
 
     data = utils.remove_df_header(df)
     if gridded:
-        da = __xyz_gridded_points(data, resolution)
+        da = __xyz_gridded_points(data)
     else:
         da = __xyz_random_points(data, resolution, non_gridded_tolerance)
 
     return da
 
 
-def __xyz_gridded_points(data: pd.DataFrame, res: float | int) -> xr.DataArray:
+def __xyz_gridded_points(data: pd.DataFrame) -> xr.DataArray:
     """
-    Convert XYZ point data into a gridded xarray DataArray.
+    Convert XYZ point data that already represents a grid into xarray DataArray.
 
     Parameters
     ----------
     data : pd.DataFrame
         A pandas DataFrame containing the XYZ point data with columns 'x', 'y', and 'z'.
-    res : float or int
-        The desired resolution of the grid.
 
     Returns
     -------
@@ -108,22 +104,25 @@ def __xyz_gridded_points(data: pd.DataFrame, res: float | int) -> xr.DataArray:
 
     sorted_data = data.sort_values(["y", "x"], ascending=[False, True])
 
-    idxs_x = np.int32(np.round((sorted_data["x"] - bounds[0]) / res))
-    idxs_y = np.int32(np.round((sorted_data["y"] - bounds[2]) / res))
+    coord_x = np.unique(sorted_data["x"])
+    coord_y = np.unique(sorted_data["y"])[::-1]
 
-    coord_x = np.arange(bounds[0], bounds[1] + res, res, dtype=np.float32)
-    coord_y = np.arange(bounds[3], bounds[2] - res, -res, dtype=np.float32)
+    res_x = np.mean(np.diff(coord_x))
+    res_y = np.mean(np.diff(coord_y))
+
+    idxs_x = np.int32(np.round((sorted_data["x"] - bounds[0]) / res_x))
+    idxs_y = np.int32(np.round((sorted_data["y"] - bounds[-1]) / res_y))
 
     # DataArray Attributes
     transform_attr = (
-        res,
+        res_x,
         0.0,
-        coord_x[0] - 0.5 * res,
+        coord_x[0] - 0.5 * res_x,
         0.0,
-        -res,
-        coord_y[0] + 0.5 * res,
+        -res_y,
+        coord_y[0] + 0.5 * res_y,
     )
-    res_attr = (res, res)
+    res_attr = (res_x, res_y)
     is_tiled_attr = 0
     scales_attr = (1.0,)
     offset_attr = (0.0,)
