@@ -1,9 +1,10 @@
 [investigated_areas]
+path = "n:/Projects/11205000/11205236/C. Report - advise/3. Morfologie kust/Bodemdaling/Voor Erik - volumes/Deelgebieden shapefile/Deelgebieden_def.shp"
 
 
-
-[raster_config]
+[output_config]
 epsg = 32631
+resolution = 100
 unit = "mm/yr"
 
 

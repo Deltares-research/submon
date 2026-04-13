@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import geopandas as gpd
+import numpy as np
 import rioxarray
 import xarray as xr
 from pyproj import CRS
@@ -15,7 +16,40 @@ if TYPE_CHECKING:
     from submon.rasters import SubsidenceRaster
 
 
-def load_subsidence_rasters(config: dict) -> dict[SubsidenceRaster]:
+def load_subsidence_areas(config: dict) -> gpd.GeoDataFrame:
+    """
+    Load subsidence areas from disk based on a configuration dictionary.
+
+    Parameters
+    ----------
+    config : dict
+        A dictionary containing the subsidence area configuration, including paths and names.
+        Expected to contain a 'subsidence_areas' key with a list of area configurations.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        A GeoDataFrame containing the loaded subsidence areas with their metadata.
+
+    Raises
+    ------
+    ValueError
+        If the subsidence areas file does not have a defined CRS.
+
+    """
+    areas = gpd.read_file(config["investigated_areas"]["path"])
+
+    if not areas.crs:
+        raise ValueError("The subsidence areas file must have a defined CRS.")
+
+    areas = areas.to_crs(config["output_config"]["epsg"])
+
+    return areas
+
+
+def load_subsidence_rasters(
+    config: dict, target_grid: xr.DataArray
+) -> dict[SubsidenceRaster]:
     """
     Load subsidence rasters from disk based on a configuration dictionary, applying
     coordinate reference system and unit conversions as specified.
@@ -26,6 +60,9 @@ def load_subsidence_rasters(config: dict) -> dict[SubsidenceRaster]:
         A dictionary containing the raster configuration, including paths and names.
         Expected to contain keys for subsidence sources ('gia', 'tectonic', 'mining')
         and a 'raster_config' key with unit and epsg conversion settings.
+    target_grid : xr.DataArray
+        An xarray DataArray representing the target grid to which rasters should be
+        reprojected.
 
     Returns
     -------
@@ -52,9 +89,10 @@ def load_subsidence_rasters(config: dict) -> dict[SubsidenceRaster]:
             raster = load_and_convert_raster(
                 raster_info["path"],
                 raster_info["units"],
-                config["raster_config"]["unit"],
+                config["output_config"]["unit"],
                 raster_info["epsg"],
-                config["raster_config"]["epsg"],
+                config["output_config"]["epsg"],
+                target_grid=target_grid,
                 **raster_info.get("reader_kwargs", {}),
             )
             raster_object = rasters.SubsidenceRaster(
@@ -63,9 +101,9 @@ def load_subsidence_rasters(config: dict) -> dict[SubsidenceRaster]:
                 subsidence_type=source,
                 statistic_type=raster_info.get("stat", None),
                 original_crs=CRS.from_user_input(raster_info["epsg"]),
-                converted_crs=CRS.from_user_input(config["raster_config"]["epsg"]),
+                converted_crs=CRS.from_user_input(config["output_config"]["epsg"]),
                 original_units=raster_info["units"],
-                converted_units=config["raster_config"]["unit"],
+                converted_units=config["output_config"]["unit"],
             )
             data[source].append(raster_object)
 
@@ -78,6 +116,7 @@ def load_and_convert_raster(
     dzdt_to: str,
     from_epsg: int | str | CRS,
     to_epsg: int | str | CRS,
+    target_grid: xr.DataArray = None,
     **kwargs,
 ) -> xr.DataArray:
     """
@@ -122,7 +161,13 @@ def load_and_convert_raster(
     da.rio.write_crs(from_epsg, inplace=True)
     if CRS.from_user_input(from_epsg) != CRS.from_user_input(to_epsg):
         da = da.rio.reproject(to_epsg)
+
+    if target_grid is not None:
+        da = da.rio.reproject_match(target_grid)
+
     factor = units.calculate_dzdt_factor(dzdt_from, dzdt_to)
     da *= factor
+
+    da = da.rio.write_nodata(np.nan, inplace=True)
 
     return da
