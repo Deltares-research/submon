@@ -21,8 +21,9 @@ if __name__ == "__main__":
     data = read.load_subsidence_rasters(config, target_grid)
 
     # Hieronder verder werken aan berekeningen...
+    gia_stats = stats.statistics_from_subsidence_rasters(data["gia"])
 
-    # combined_raster = rasters.sum_subsidence_rasters(
-    #     data["gia"][0], data["tectonic"][0]
-    # )
-    # print(1)
+    combined_raster = rasters.sum_subsidence_rasters(
+        data["gia"][0], data["tectonic"][0]
+    )
+    print(1)

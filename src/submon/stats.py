@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import xarray as xr
+
 if TYPE_CHECKING:
     from submon.rasters import SubsidenceRaster
 
@@ -12,4 +14,7 @@ def statistics_from_subsidence_rasters(
     Calculate a statistic from a list of SubsidenceRasters.
 
     """
-    pass  # Juliette
+    test = xr.concat([raster.da for raster in subsidence_rasters], "new_dim")
+    test = test.mean("new_dim")
+
+    return test
