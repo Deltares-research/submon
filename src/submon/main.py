@@ -26,4 +26,5 @@ if __name__ == "__main__":
     combined_raster = rasters.sum_subsidence_rasters(
         data["gia"][0], data["tectonic"][0]
     )
-    print(1)
+    print(2)
+    
