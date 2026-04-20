@@ -1,6 +1,8 @@
 import tomllib
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+
 from submon import rasters, stats
 from submon.io import export, read
 
@@ -22,9 +24,11 @@ if __name__ == "__main__":
 
     # Hieronder verder werken aan berekeningen...
     gia_stats = stats.statistics_from_subsidence_rasters(data["gia"])
+    mean_gia, min_gia, max_gia = gia_stats
+
+    print(gia_stats)
 
     combined_raster = rasters.sum_subsidence_rasters(
         data["gia"][0], data["tectonic"][0]
     )
     print(2)
-    
