@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest import result
 
 import geopandas as gpd
 import numpy as np
@@ -35,17 +36,17 @@ class SubsidenceRaster:
 
 
 def sum_subsidence_rasters(
-    raster_l: SubsidenceRaster, raster_r: SubsidenceRaster
-) -> SubsidenceRaster:
+    raster_l: dict[str, xr.DataArray], raster_r: dict[str, xr.DataArray]
+) -> dict[str, xr.DataArray]:
     """
-    Combine two SubsidenceRasters into a single one by summing their DataArrays.
+    Combine two dictionaries of DataArrays into a single one by summing their DataArrays.
 
     Parameters
     ----------
-    raster_l : SubsidenceRaster
-        The left-hand side SubsidenceRaster to combine.
-    raster_r : SubsidenceRaster
-        The right-hand side SubsidenceRaster to combine.
+    raster_l : dict[str, xr.DataArray]
+        The left-hand side dictionary of DataArrays to combine.
+    raster_r : dict[str, xr.DataArray]
+        The right-hand side dictionary of DataArrays to combine.
 
     Returns
     -------
@@ -59,18 +60,10 @@ def sum_subsidence_rasters(
     CRS and units. The resulting DataArray is the sum of the two input DataArrays, and
     the metadata is taken from the left-hand side raster.
     """
-    combined_da = raster_l.da + raster_r.da
-
-    return SubsidenceRaster(
-        da=combined_da,
-        source_path=[raster_l.source_path, raster_r.source_path],
-        subsidence_type=raster_l.subsidence_type + " + " + raster_r.subsidence_type,
-        statistic_type=raster_l.statistic_type,
-        original_crs=raster_l.original_crs,
-        converted_crs=raster_l.converted_crs,
-        original_units=raster_l.original_units,
-        converted_units=raster_l.converted_units,
-    )
+    combined = {}
+    for key in raster_l:
+        combined[key] = raster_l[key] + raster_r[key]
+    return combined
 
 
 def create_grid_from_subsidence_areas(
