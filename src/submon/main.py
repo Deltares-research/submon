@@ -5,6 +5,18 @@ import matplotlib.pyplot as plt
 
 from submon import rasters, stats
 from submon.io import export, read
+from submon.io.export import to_geotiff
+
+# output paths
+output_path = Path(r"C:\Projecten\bodemdaling\output")
+gia_dir = Path(output_path / "gia")
+gia_dir.mkdir(exist_ok=True)
+
+tect_dir = output_path / "tectonic"
+tect_dir.mkdir(exist_ok=True)
+
+combined_dir = output_path / "subsidence_combined"
+combined_dir.mkdir(exist_ok=True)
 
 if __name__ == "__main__":
     config_path = Path(__file__).parents[2] / Path("config/example_config.toml")
@@ -23,12 +35,27 @@ if __name__ == "__main__":
     data = read.load_subsidence_rasters(config, target_grid)
 
     # Hieronder verder werken aan berekeningen...
-    gia_stats = stats.statistics_from_subsidence_rasters(data["gia"])
-    mean_gia, min_gia, max_gia = gia_stats
-
-    print(gia_stats)
-
-    combined_raster = rasters.sum_subsidence_rasters(
-        data["gia"][0], data["tectonic"][0]
+    # statistics (mean, max en min) from the statistics_from_subsidence_raster extraction
+    gia_stats = stats.statistics_from_subsidence_rasters(
+        data["gia"], config["gia"]["stats"]
     )
-    print(2)
+
+    # Tectonic subsidence statistics
+    tect_stats = {x.statistic_type: x.da for x in data["tectonic"]}
+
+    # GIA and Tectonic combined geological subsidence (GIA + Tectonics)
+    combined_stats = rasters.sum_subsidence_rasters(gia_stats, tect_stats)
+
+    # export of GIA, Tectonics and combined to geotiff files
+    exports = [
+        (gia_stats, gia_dir, "gia"),
+        (tect_stats, tect_dir, "tect"),
+        (combined_stats, combined_dir, "subsidence_combined"),
+    ]
+
+    for stats_dict, out_dir, prefix in exports:
+        for stat, da in stats_dict.items():
+            out_file = out_dir / f"{prefix}_{stat}.tif"
+            to_geotiff(da, out_file, compress=True)
+
+    print("Done!")
