@@ -17,7 +17,7 @@ STAT_TO_FUNC = {
 def statistics_from_subsidence_rasters(
     subsidence_rasters: list[SubsidenceRaster],
     stats_to_calculate: list[str] = ["mean", "min", "max"],
-) -> dict[str, xr.DataArray]:
+) -> xr.Dataset:
     """
     Calculate a statistic from a list of SubsidenceRasters.
 
@@ -35,4 +35,6 @@ def statistics_from_subsidence_rasters(
 
         results[stat] = scenario_data.reduce(STAT_TO_FUNC[stat], dim="scenario")
 
-    return results
+    return xr.Dataset(
+        data_vars=results,
+    )

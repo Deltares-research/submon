@@ -35,35 +35,35 @@ class SubsidenceRaster:
         return f"SubsidenceRaster(source_path={source_paths_str}, subsidence_type={self.subsidence_type}, statistic_type={self.statistic_type}, original_crs={self.original_crs}, converted_crs={self.converted_crs}, original_units={self.original_units}, converted_units={self.converted_units})"
 
 
-def sum_subsidence_rasters(
-    raster_l: dict[str, xr.DataArray], raster_r: dict[str, xr.DataArray]
-) -> dict[str, xr.DataArray]:
+def sum_subsidence_rasters(ds_l: xr.Dataset, ds_r: xr.Dataset) -> xr.Dataset:
     """
-    Combine two dictionaries of DataArrays into a single one by summing their DataArrays.
-
     Parameters
     ----------
-    raster_l : dict[str, xr.DataArray]
-        The left-hand side dictionary of DataArrays to combine.
-    raster_r : dict[str, xr.DataArray]
-        The right-hand side dictionary of DataArrays to combine.
+    ds_l : xarray.Dataset
+        The left-hand side Dataset to combine.
+    ds_r : xarray.Dataset
+        The right-hand side Dataset to combine.
 
     Returns
     -------
-    SubsidenceRaster
-        A new SubsidenceRaster containing the combined DataArray and metadata from the
-        input rasters.
+    xarray.Dataset
+        A new Dataset containing the summed data variables.
 
     Notes
     -----
-    This function assumes that the input rasters have already been converted to the same
-    CRS and units. The resulting DataArray is the sum of the two input DataArrays, and
-    the metadata is taken from the left-hand side raster.
+    This function assumes that the input datasets have already been converted to the same
+    CRS and units, and are on the same grid. Data variables that are missing from either
+    side are treated as 0 so the other side is preserved.
     """
-    combined = {}
-    for key in raster_l:
-        combined[key] = raster_l[key] + raster_r[key]
-    return combined
+
+    all_vars = sorted(set(ds_l.data_vars) | set(ds_r.data_vars))
+    data_vars = dict((name, ds_l.get(name, 0) + ds_r.get(name, 0)) for name in all_vars)
+
+    return xr.Dataset(
+        data_vars=data_vars,
+        coords=ds_l.coords,
+        attrs=dict(ds_l.attrs),
+    )
 
 
 def create_grid_from_subsidence_areas(
