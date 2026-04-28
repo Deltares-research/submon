@@ -1,6 +1,18 @@
 [investigated_areas]
 path = "n:/Projects/11205000/11205236/C. Report - advise/3. Morfologie kust/Bodemdaling/Voor Erik - volumes/Deelgebieden shapefile/Deelgebieden_def.shp"
 
+[output]
+base = "c:/Projecten/bodemdaling/output"
+
+[output.paths]
+gia = "gia"
+tectonic = "tectonic"
+combined = "subsidence_combined"
+mining = "mining"
+total = "subsidence_total"
+
+[output.files]
+excel = "subsidence_total/deelgebieden_zonal_stats.xlsx"
 
 [output_config]
 epsg = 32631
@@ -9,27 +21,31 @@ unit = "mm/yr"
 
 
 [gia]
-stats = true
+stats = ["mean", "min", "max"]
 
 [[gia.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_71p55.txt"
 epsg = 4326
 units = "mm/yr"
+subsidence_positive = true
 reader_kwargs = {gridded = true}
 [[gia.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_96p55.txt"
 epsg = 4326
 units = "mm/yr"
+subsidence_positive = true
 reader_kwargs = {gridded = true}
 [[gia.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_96p53.txt"
 epsg = 4326
 units = "mm/yr"
+subsidence_positive = true
 reader_kwargs = {gridded = true}
 [[gia.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/GIA/urate_96p52.txt"
 epsg = 4326
 units = "mm/yr"
+subsidence_positive = true
 reader_kwargs = {gridded = true}
 
 
@@ -42,16 +58,21 @@ path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/
 epsg = 32631
 units = "mm/yr"
 stat = "max"
+subsidence_positive = false
+
 [[tectonic.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/Long_term_basin_subsidence/mean_subsidence_rate_1864_0.tif"
 epsg = 32631
 units = "mm/yr"
 stat = "mean"
+subsidence_positive = false
+
 [[tectonic.rasters]]
 path = "n:/Projects/11211500/11211567/F. Other information/Bodemdaling/Data GIA/Nieuwe kaarten/Long_term_basin_subsidence/min_subsidence_rate_1864_0.tif"
 epsg = 32631
 units = "mm/yr"
 stat = "min"
+subsidence_positive = false
 
 
 [mining]
@@ -61,3 +82,4 @@ stats = false
 path = "n:/Projects/11205000/11205236/C. Report - advise/3. Morfologie kust/Bodemdaling/Voor Erik - volumes/Basiskaarten daling door winning/voor2020_cm"
 epsg = 28992
 units = "cm/30yr"
+subsidence_positive = false

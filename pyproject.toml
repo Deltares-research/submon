@@ -81,6 +81,8 @@ sphinx-design = "*"
 myst-nb = "*"
 pre-commit = "*"
 scipy = "*"
+typing = ">=3.10.0.0,<4"
+h5netcdf = ">=1.8.1,<2"
 
 [tool.pixi.pypi-dependencies]
 submon = { path = ".", editable = true }

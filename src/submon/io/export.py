@@ -51,8 +51,7 @@ def _(
             file,
             engine="h5netcdf",
             encoding={
-                data.name
-                or "__xarray_dataarray_variable__": {
+                data.name or "__xarray_dataarray_variable__": {
                     "zlib": True,
                     "complevel": compress_level,
                 }
@@ -135,7 +134,7 @@ def to_geotiff(
 
 @to_geotiff.register
 def _(
-    data: xr.DataArray,
+    data: xr.DataArray | xr.Dataset,
     file: str | WindowsPath,
     compress=False,
 ) -> None:
