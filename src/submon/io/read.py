@@ -96,17 +96,19 @@ def load_subsidence_rasters(
                 subsidence_positive=raster_info["subsidence_positive"],
                 **raster_info.get("reader_kwargs", {}),
             )
-            raster_object = rasters.SubsidenceRaster(
-                da=raster,
-                source_path=raster_info["path"],
-                subsidence_type=source,
-                statistic_type=raster_info.get("stat", None),
-                original_crs=CRS.from_user_input(raster_info["epsg"]),
-                converted_crs=CRS.from_user_input(config["output_config"]["epsg"]),
-                original_units=raster_info["units"],
-                converted_units=config["output_config"]["unit"],
+
+            # Add metadata attributes to the DataArray for traceability
+            raster.attrs["source_path"] = raster_info["path"]
+            raster.attrs["subsidence_type"] = source
+            raster.attrs["statistic_type"] = raster_info.get("stat", None)
+            raster.attrs["original_crs"] = CRS.from_user_input(raster_info["epsg"])
+            raster.attrs["converted_crs"] = CRS.from_user_input(
+                config["output_config"]["epsg"]
             )
-            data[source].append(raster_object)
+            raster.attrs["original_units"] = raster_info["units"]
+            raster.attrs["converted_units"] = config["output_config"]["unit"]
+
+            data[source].append(raster)
 
     return data
 

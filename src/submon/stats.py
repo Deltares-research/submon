@@ -7,7 +7,6 @@ from matplotlib.pylab import compress, mean
 
 from submon import stats
 from submon.io.export import to_geotiff
-from submon.rasters import SubsidenceRaster
 
 STAT_TO_FUNC = {
     "mean": np.nanmean,
@@ -18,7 +17,7 @@ STAT_TO_FUNC = {
 
 
 def statistics_from_subsidence_rasters(
-    subsidence_rasters: list[SubsidenceRaster],
+    subsidence_rasters: list[xr.DataArray],
     stats_to_calculate: list[str] = ["mean", "min", "max"],
 ) -> xr.Dataset:
     """
@@ -26,8 +25,8 @@ def statistics_from_subsidence_rasters(
     ----------
     Parameters
     ----------
-    subsidence_rasters : list[SubsidenceRaster]
-        List of SubsidenceRaster objects, each representing one scenario.
+    subsidence_rasters : list[xr.DataArray]
+        List of DataArray objects, each representing one scenario.
     stats_to_calculate : list of str, optional
         Statistics to calculate. Allowed values must be keys in STAT_TO_FUNC
         (e.g. ["mean", "min", "max"]).
@@ -39,9 +38,7 @@ def statistics_from_subsidence_rasters(
         computed over the 'scenario' dimension.
 
     """
-    scenario_data = xr.concat(
-        [raster.da for raster in subsidence_rasters], dim="scenario"
-    )
+    scenario_data = xr.concat(subsidence_rasters, dim="scenario")
 
     results = {}
     for stat in stats_to_calculate:
@@ -143,6 +140,7 @@ def export_dataset_vars_to_geotiff(
             compress=compress,
             data_var=var,
         )
+
 
 def zonal_stats(da, geom, crs):
     """
