@@ -44,15 +44,11 @@ if __name__ == "__main__":
         data_vars={x.statistic_type: x.da for x in data["tectonic"]}
     )
 
-    for var in tect_stats.data_vars:
-        tect_stats[var] = stats.fix_nodata(tect_stats[var])
-
     # Combined (GIA + Tectonics)
     combined_stats = rasters.sum_subsidence_rasters(gia_stats, tect_stats)
 
     # mining data
     mining_stats = xr.Dataset(data_vars={"mining": data["mining"][0].da})
-    mining_stats["mining"] = stats.fix_nodata(mining_stats["mining"])
 
     # Total subsidence with mining uncertainty
     # last30 / next30 represent uncertainty scenarios

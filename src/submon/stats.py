@@ -144,27 +144,6 @@ def export_dataset_vars_to_geotiff(
             data_var=var,
         )
 
-
-def fix_nodata(da, threshold=-1e30):
-    """
-
-    Write each data variable in an xarray Dataset to a separate GeoTIFF file.
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        Dataset containing one or more data variables to be exported.
-    out_dir : Path
-        Output directory where the GeoTIFF files will be written.
-    compress : bool, optional
-         If True, apply compression to the GeoTIFF files.
-
-    """
-    da = da.where(da > threshold)
-    da = da.rio.write_nodata(np.nan, inplace=False)
-    return da
-
-
 def zonal_stats(da, geom, crs):
     """
 

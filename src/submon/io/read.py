@@ -173,6 +173,8 @@ def load_and_convert_raster(
     if subsidence_positive:
         da *= -1
 
-    da = da.rio.write_nodata(np.nan, inplace=True)
+    if "_FillValue" in da.attrs:
+        da = da.where(da != da.attrs["_FillValue"], other=np.nan)
+        da = da.rio.write_nodata(np.nan, inplace=True)
 
     return da
