@@ -11,7 +11,11 @@ from submon import rasters, stats
 from submon.io import export, read
 from submon.io.export import to_geotiff, to_nc
 
-""" Compute subsidence components (GIA, Tectonics, Combined, Mining) and total subsidence with mining uncertainty. Export results to NetCDF and GeoTIFF, and calculate zonal statistics for specified areas. """
+"""
+Compute subsidence components (GIA, Tectonics, Combined, Mining) and total subsidence
+with mining uncertainty. Export results to NetCDF and GeoTIFF,
+and calculate zonal statistics for specified areas.
+"""
 
 if __name__ == "__main__":
     config_path = Path(__file__).parents[2] / Path("config/example_config.toml")
@@ -76,18 +80,31 @@ if __name__ == "__main__":
         )
 
     # Export to GEOTIFF
-    # gebruik de helper functie export_dataset_vars_to_geotiff om alle data_vars in een Dataset te exporteren naar aparte GeoTIFFs (to_geotiff kan maar 1 dataarray per keer)
-    for key, ds in [
-        ("gia", gia_stats),
-        ("tectonic", tect_stats),
-        ("combined", combined_stats),
-        ("mining", mining_stats),
-    ]:
-        stats.export_dataset_vars_to_geotiff(
-            ds,
-            Path(config["output"]["base"]) / config["output"]["paths"][key],
-        )
+    # Use the helper function export_dataset_vars_to_geotiff to export all data_vars
+    # in a Dataset to separate GeoTIFF files (to_geotiff can only handle one DataArray at a time)
 
+    # Export static subsidence components (no period dimension) to GeoTIFF
+    for key, ds in [
+        ("GIA", gia_stats),
+        ("Tectonic", tect_stats),
+        ("Combined", combined_stats),
+        ("Mining", mining_stats),
+    ]:
+        out_dir = (
+            Path(config["output"]["base"]) / config["output"]["paths"][key.lower()]
+        )
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        for var in ds.data_vars:
+            # Results in filenames like: GIA_mean.tif, Tect_min.tif, Mining_max.tif
+            to_geotiff(
+                ds,
+                out_dir / f"{key}_{var}.tif",
+                compress=True,
+                data_var=var,
+            )
+
+    # Export total subsidence per period (e.g. last30 / next30)
     for period in total["period"].values:
         total_p = total.sel(period=period)
 
@@ -106,14 +123,14 @@ if __name__ == "__main__":
                 data_var=stat,
             )
 
-    # deelgebieden inlezen
+    # read investigaqted areas
     gdf = gpd.read_file(Path(config["investigated_areas"]["path"]))
     gdf = gdf.to_crs(combined_stats.rio.crs)
     gdf["area_m2"] = gdf.geometry.area
 
-    # Lege lijst, elk deelgebied wordt 1 dictionary
+    # empty list for every investageted area, to be filled with zonal statistics and volumes
     rows = []
-    # loop over de deelgebieden en bereken zonale statistieken voor GIA, Tect, Combined, Mining, Total
+    # loop over investigated areas and calculate zonal statistics for each subsidence component, including mining uncertainty scenarios, and calculate volumes based on mean subsidence and area. Save results to Excel.
     for i, row in gdf.iterrows():
         geom = row.geometry
         gebied = row["Gebied"]

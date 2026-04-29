@@ -22,7 +22,22 @@ def statistics_from_subsidence_rasters(
     stats_to_calculate: list[str] = ["mean", "min", "max"],
 ) -> xr.Dataset:
     """
-    Calculate a statistic from a list of SubsidenceRasters.
+    Calculate summary statistics across multiple subsidence scenarios.
+    ----------
+    Parameters
+    ----------
+    subsidence_rasters : list[SubsidenceRaster]
+        List of SubsidenceRaster objects, each representing one scenario.
+    stats_to_calculate : list of str, optional
+        Statistics to calculate. Allowed values must be keys in STAT_TO_FUNC
+        (e.g. ["mean", "min", "max"]).
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset containing one data variable per requested statistic,
+        computed over the 'scenario' dimension.
+
     """
     scenario_data = xr.concat(
         [raster.da for raster in subsidence_rasters], dim="scenario"
@@ -50,26 +65,32 @@ def total_subsidence_with_mining_uncertainty(
     period_dim: str = "period",
 ) -> xr.Dataset:
     """
-    Bereken totale bodemdaling = combined (GIA+Tect) + winning (mining),
-    waarbij onzekerheid (%) alleen op winning wordt toegepast.
+
+    Compute total subsidence = combined (GIA + Tectonics) + mining,
+    where uncertainty (%) is applied to the mining component only.
 
     Parameters
     ----------
     combined : xr.Dataset
-        Dataset met data_vars: "min", "mean", "max" (geologisch: GIA+Tect).
+        Dataset containing data variables "min", "mean", and "max"
+        representing geological subsidence (GIA + tectonics).
     mining : xr.Dataset
-        Dataset met 1 variabele (winning kaart).
+        Dataset containing a single variable representing mining-induced subsidence.
     unc_last30 : float
-        Onzekerheid rondom winning voor laatste 30 jaar (0.25 = ±25%).
+        Relative uncertainty for mining during the past 30 years
+        (0.25 = ±25%).
     unc_next30 : float
-        Onzekerheid rondom winning voor komende 30 jaar (0.50 = ±50%).
+        Relative uncertainty for mining during the next 30 years
+        (0.50 = ±50%).
     period_dim : str
-        Naam van de dimensie voor periode labels.
+        Name of the dimension used for period labels.
 
     Returns
     -------
     xr.Dataset
-        Dataset met dims: (period, y, x) en data_vars: min/mean/max (totale bodemdaling).
+        Dataset with dimensions (period, y, x) and data variables
+        "min", "mean", and "max" representing total subsidence.
+
     """
     # Validate combined vars
     required = {"min", "mean", "max"}
@@ -113,7 +134,6 @@ def export_dataset_vars_to_geotiff(
 ):
     """
     Schrijf elke data_var in een xr.Dataset weg als losse GeoTIFF.
-    Verwacht dat elke data_var 2D is (y, x).
     """
     for var in ds.data_vars:
         out_tif = out_dir / f"{var}.tif"
@@ -127,7 +147,18 @@ def export_dataset_vars_to_geotiff(
 
 def fix_nodata(da, threshold=-1e30):
     """
-    Zet extreme NoData waarden om naar NaN en schrijf NoData correct weg.
+
+    Write each data variable in an xarray Dataset to a separate GeoTIFF file.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset containing one or more data variables to be exported.
+    out_dir : Path
+        Output directory where the GeoTIFF files will be written.
+    compress : bool, optional
+         If True, apply compression to the GeoTIFF files.
+
     """
     da = da.where(da > threshold)
     da = da.rio.write_nodata(np.nan, inplace=False)
@@ -136,7 +167,24 @@ def fix_nodata(da, threshold=-1e30):
 
 def zonal_stats(da, geom, crs):
     """
-    Bereken zonale statistieken van een DataArray binnen geometrieën.
+
+    Compute zonal statistics of a DataArray within a geometry.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        Input raster data.
+    geom : shapely geometry
+        Geometry defining the zone over which statistics are calculated.
+    crs : CRS
+        Coordinate reference system of the geometry.
+
+    Returns
+    -------
+    Float
+        (mean, min, max) values within the geometry.
+        Returns (np.nan, np.nan, np.nan) if no valid data is present.
+
     """
 
     clipped = da.rio.clip([geom], crs=crs, drop=True, all_touched=True)
@@ -152,9 +200,30 @@ def zonal_stats(da, geom, crs):
 
 def zonal_bandwidth_from_dataset(ds: xr.Dataset, geom, crs, nd=3):
     """
-    zonal_stats plus minus
-    ds bevat data_vars: 'mean', 'min', 'max'
-    Geeft (mean, min, max, 'mean ±') voor één polygon
+
+    Compute zonal statistics with a plus/minus bandwidth from a dataset.
+
+    The input dataset must contain the data variables "mean", "min", and "max".
+    For a single polygon, this function returns the zonal mean, minimum,
+    maximum, and a formatted string representing:
+    mean ± half the range ((max - min) / 2).
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset containing data variables "mean", "min", and "max".
+    geom : shapely geometry
+        Polygon geometry over which zonal statistics are calculated.
+    crs : CRS
+        Coordinate reference system of the geometry.
+    nd : int, optional
+        Number of decimal places used in the formatted output string.
+
+    Returns
+    -------
+    tuple
+        (mean, min, max, txt), where txt is formatted as "mean ± bandwidth".
+
     """
     mean, _, _ = zonal_stats(ds["mean"], geom, crs)
     minv, _, _ = zonal_stats(ds["min"], geom, crs)
@@ -165,6 +234,37 @@ def zonal_bandwidth_from_dataset(ds: xr.Dataset, geom, crs, nd=3):
 
 
 def zonal_mining_with_uncertainty(da, geom, crs, unc, nd=3):
+    """
+
+    Compute the zonal mean value and associated uncertainty band
+    based on a relative uncertainty.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        DataArray containing mining-related values.
+    geom : shapely geometry
+        Geometry defining the area of interest.
+    crs : CRS
+        Coordinate reference system of the geometry.
+    unc : float
+        Relative uncertainty (e.g. 0.25 for ±25%).
+    nd : int, optional
+        Number of decimal places used in the formatted output.
+
+    Returns
+    -------
+    mean : float
+        Zonal mean value.
+    minv : float
+        Lower bound (mean * (1 - unc)).
+    maxv : float
+        Upper bound (mean * (1 + unc)).
+    txt : str
+        Formatted string: "mean ± absolute uncertainty".
+
+
+    """
     mean = zonal_mean(da, geom, crs)
     if np.isnan(mean):
         return np.nan, np.nan, np.nan, ""
@@ -176,6 +276,26 @@ def zonal_mining_with_uncertainty(da, geom, crs, unc, nd=3):
 
 
 def zonal_mean(da, geom, crs):
+    """
+
+    Compute the zonal mean value within a geometry.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        Raster data.
+    geom : shapely geometry
+        Geometry defining the area of interest.
+    crs : CRS
+        Coordinate reference system of the geometry.
+
+    Returns
+    -------
+    float
+        Mean value within the geometry, or np.nan if no valid data is present.
+
+    """
+
     clipped = da.rio.clip([geom], crs=crs, drop=True, all_touched=True)
     if clipped.isnull().all():
         return np.nan
@@ -183,4 +303,20 @@ def zonal_mean(da, geom, crs):
 
 
 def volume(mean_value, area_m2):
+    """
+    Convert a mean value and area to a volume in millions.
+
+    Parameters
+    ----------
+    mean_value : float
+        Mean value (e.g. subsidence in metres).
+    area_m2 : float
+        Area in square metres.
+
+    Returns
+    -------
+    float
+        Volume expressed in millions (division by 1e6).
+    """
+
     return mean_value * area_m2 / 1e6
