@@ -111,7 +111,7 @@ def __xyz_gridded_points(data: pd.DataFrame) -> xr.DataArray:
     res_y = np.mean(np.diff(coord_y))
 
     idxs_x = np.int32(np.round((sorted_data["x"] - bounds[0]) / res_x))
-    idxs_y = np.int32(np.round((sorted_data["y"] - bounds[-1]) / res_y))
+    idxs_y = np.int32(np.round((bounds[-1] - sorted_data["y"]) / res_y))
 
     # DataArray Attributes
     transform_attr = (
