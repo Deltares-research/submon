@@ -1,15 +1,12 @@
 import tomllib
 from pathlib import Path
 
-import geopandas as gpd
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import xarray as xr
 
-from submon import rasters, stats
-from submon.io import export, read
-from submon.io.export import to_geotiff, to_nc
+from submon import rasters, stats, utils
+from submon.io import read
+from submon.io.export import to_geotiff
 
 """
 Compute subsidence components (GIA, Tectonics, Combined, Mining) and total subsidence
@@ -35,168 +32,116 @@ if __name__ == "__main__":
 
     # GIA
     # statistics (mean, max en min) from the statistics_from_subsidence_raster extraction
-    gia_stats = stats.statistics_from_subsidence_rasters(
-        data["gia"], config["gia"]["stats"]
-    )
+    gia_stats = stats.statistics_from_dataarrays(data["gia"], config["gia"]["stats"])
 
-    # Tectonic subsidence statistics
-    tect_stats = xr.Dataset(
-        data_vars={x.statistic_type: x for x in data["tectonic"]}
-    )
+    # Tectonic
+    tect_stats = xr.Dataset(data_vars={x.statistic_type: x for x in data["tectonic"]})
 
     # Combined (GIA + Tectonics)
-    combined_stats = rasters.sum_subsidence_rasters(gia_stats, tect_stats)
+    combined_stats = rasters.sum_datasets_per_datavar(gia_stats, tect_stats)
 
     # mining data
-    mining_stats = xr.Dataset(data_vars={"mining": data["mining"][0]})
+    mining_da = data["mining"][0]
 
-    # Total subsidence with mining uncertainty
-    # last30 / next30 represent uncertainty scenarios
-    total = stats.total_subsidence_with_mining_uncertainty(
-        combined_stats,
-        mining_stats,
-        unc_last30=0.25,
-        unc_next30=0.50,
+    # mining with uncertainty
+    mining_last30 = stats.predefined_statistics(
+        mining_da, {"mean": 1.0, "min": 0.75, "max": 1.25}
     )
-    # Export all subsidence components to NetCDF for reuse and reproducibility
-    # (one file per component)
+    mining_next30 = stats.predefined_statistics(
+        mining_da, {"mean": 1.0, "min": 0.50, "max": 1.50}
+    )
 
-    exports = [
-        ("gia", gia_stats, "gia.nc"),
-        ("tectonic", tect_stats, "tect.nc"),
-        ("combined", combined_stats, "subsidence_combined.nc"),
-        ("mining", mining_stats, "mining.nc"),
-        ("total", total, "subsidence_total.nc"),
-    ]
-
-    for key, ds, filename in exports:
-        to_nc(
-            ds,
-            Path(config["output"]["base"]) / config["output"]["paths"][key] / filename,
-        )
-
-    # Export to GEOTIFF
-    # Use the helper function export_dataset_vars_to_geotiff to export all data_vars
-    # in a Dataset to separate GeoTIFF files (to_geotiff can only handle one DataArray at a time)
+    # total subsidence with mining uncertainty
+    subsidence_last30 = rasters.sum_datasets_per_datavar(combined_stats, mining_last30)
+    subsidence_next30 = rasters.sum_datasets_per_datavar(combined_stats, mining_next30)
 
     # Export static subsidence components (no period dimension) to GeoTIFF
-    for key, ds in [
+    for key, obj in [
         ("GIA", gia_stats),
         ("Tectonic", tect_stats),
         ("Combined", combined_stats),
-        ("Mining", mining_stats),
+        ("Mining", mining_da),
+        ("Total_Last30", subsidence_last30),
+        ("Total_Next30", subsidence_next30),
     ]:
         out_dir = (
             Path(config["output"]["base"]) / config["output"]["paths"][key.lower()]
         )
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        for var in ds.data_vars:
-            # Results in filenames like: GIA_mean.tif, Tect_min.tif, Mining_max.tif
-            to_geotiff(
-                ds,
-                out_dir / f"{key}_{var}.tif",
-                compress=True,
-                data_var=var,
-            )
-
-    # Export total subsidence per period (e.g. last30 / next30)
-    for period in total["period"].values:
-        total_p = total.sel(period=period)
-
-        period_dir = (
-            Path(config["output"]["base"])
-            / config["output"]["paths"]["total"]
-            / str(period)
+        to_geotiff(
+            obj,
+            out_dir,
+            compress=True,
+            prefix=f"{key.lower()}_",
         )
-        period_dir.mkdir(parents=True, exist_ok=True)
-
-        for stat in ["min", "mean", "max"]:
-            to_geotiff(
-                total_p,
-                period_dir / f"{stat}.tif",
-                compress=True,
-                data_var=stat,
-            )
-
-    # read investigaqted areas
-    gdf = gpd.read_file(Path(config["investigated_areas"]["path"]))
-    gdf = gdf.to_crs(combined_stats.rio.crs)
-    gdf["area_m2"] = gdf.geometry.area
 
     # empty list for every investageted area, to be filled with zonal statistics and volumes
     rows = []
     # loop over investigated areas and calculate zonal statistics for each subsidence component, including mining uncertainty scenarios, and calculate volumes based on mean subsidence and area. Save results to Excel.
-    for i, row in gdf.iterrows():
+    for _, row in subsidence_areas.iterrows():
         geom = row.geometry
         gebied = row["Gebied"]
-        area = row["area_m2"]
+        area = geom.area
 
-        # GIA:
-        gia_mean, gia_min, gia_max, gia_txt = stats.zonal_bandwidth_from_dataset(
-            gia_stats, geom, gdf.crs
+        # Clip all datasets to the geometry
+        gia_clipped = gia_stats.rio.clip(
+            [geom], crs=subsidence_areas.crs, drop=True, all_touched=True
+        )
+        tect_clipped = tect_stats.rio.clip(
+            [geom], crs=subsidence_areas.crs, drop=True, all_touched=True
+        )
+        combined_clipped = combined_stats.rio.clip(
+            [geom], crs=subsidence_areas.crs, drop=True, all_touched=True
+        )
+        mining_last30_clipped = mining_last30.rio.clip(
+            [geom], crs=subsidence_areas.crs, drop=True, all_touched=True
+        )
+        mining_next30_clipped = mining_next30.rio.clip(
+            [geom], crs=subsidence_areas.crs, drop=True, all_touched=True
+        )
+        total_last30_clipped = subsidence_last30.rio.clip(
+            [geom], crs=subsidence_areas.crs, drop=True, all_touched=True
+        )
+        total_next30_clipped = subsidence_next30.rio.clip(
+            [geom], crs=subsidence_areas.crs, drop=True, all_touched=True
         )
 
-        # tectonics:
-        tect_mean, tect_min, tect_max, tect_txt = stats.zonal_bandwidth_from_dataset(
-            tect_stats, geom, gdf.crs
-        )
-        # combined:
-        comb_mean, comb_min, comb_max, comb_txt = stats.zonal_bandwidth_from_dataset(
-            combined_stats, geom, gdf.crs
-        )
+        # Compute mean values for each clipped dataset (returns dict like {'mean': 0.5, 'min': 0.2, 'max': 0.7})
+        gia_values = stats.mean_value_of_dataset_vars(gia_clipped)
+        tect_values = stats.mean_value_of_dataset_vars(tect_clipped)
+        combined_values = stats.mean_value_of_dataset_vars(combined_clipped)
+        mining_last30_values = stats.mean_value_of_dataset_vars(mining_last30_clipped)
+        mining_next30_values = stats.mean_value_of_dataset_vars(mining_next30_clipped)
+        total_last30_values = stats.mean_value_of_dataset_vars(total_last30_clipped)
+        total_next30_values = stats.mean_value_of_dataset_vars(total_next30_clipped)
 
-        # mining
-
-        mining_last30_mean, mining_last30_min, mining_last30_max, mining_last30_text = (
-            stats.zonal_mining_with_uncertainty(
-                mining_stats["mining"], geom, gdf.crs, unc=0.25
-            )
-        )
-
-        mining_next30_mean, mining_next30_min, mining_next30_max, mining_next30_text = (
-            stats.zonal_mining_with_uncertainty(
-                mining_stats["mining"], geom, gdf.crs, unc=0.50
-            )
-        )
-
-        # total
-        total_last30_mean, total_last30_min, total_last30_max, total_last30_text = (
-            stats.zonal_bandwidth_from_dataset(
-                total.sel(period="last30"), geom, gdf.crs
-            )
-        )
-        total_next30_mean, total_next30_min, total_next30_max, total_next30_text = (
-            stats.zonal_bandwidth_from_dataset(
-                total.sel(period="next30"), geom, gdf.crs
-            )
-        )
-
+        # Append results to rows list, including formatted statistics and calculated volumes based on mean subsidence and area
         rows.append(
             {
                 "Gebied": gebied,
-                # Componenten zonder periode
-                "GIA": gia_txt,
-                "Tect": tect_txt,
-                "CombinedGeology": comb_txt,
-                # Mining en total zijn wel periode-afhankelijk
-                "Mining_last30": mining_last30_text,
-                "Total_last30": total_last30_text,
-                "Mining_next30": mining_next30_text,
-                "Total_next30": total_next30_text,
-                # Volumes
-                "Vol_Mm3_GIA": stats.volume(gia_mean, area),
-                "Vol_Mm3_Tect": stats.volume(tect_mean, area),
-                "Vol_Mm3_CombinedGeology": stats.volume(comb_mean, area),
-                "Vol_Mm3_Mining_last30": stats.volume(mining_last30_mean, area),
-                "Vol_Mm3_Total_last30": stats.volume(total_last30_mean, area),
-                "Vol_Mm3_Total_next30": stats.volume(total_next30_mean, area),
+                "GIA": utils.format_stats_as_text(gia_values),
+                "Tect": utils.format_stats_as_text(tect_values),
+                "CombinedGeology": utils.format_stats_as_text(combined_values),
+                "Mining_last30": utils.format_stats_as_text(mining_last30_values),
+                "Total_last30": utils.format_stats_as_text(total_last30_values),
+                "Mining_next30": utils.format_stats_as_text(mining_next30_values),
+                "Total_next30": utils.format_stats_as_text(total_next30_values),
+                "Vol_Mm3_GIA": stats.volume(gia_values["mean"], area),
+                "Vol_Mm3_Tect": stats.volume(tect_values["mean"], area),
+                "Vol_Mm3_CombinedGeology": stats.volume(combined_values["mean"], area),
+                "Vol_Mm3_Mining_last30": stats.volume(
+                    mining_last30_values["mean"], area
+                ),
+                "Vol_Mm3_Total_last30": stats.volume(total_last30_values["mean"], area),
+                "Vol_Mm3_Total_next30": stats.volume(total_next30_values["mean"], area),
             }
         )
-        df = pd.DataFrame(rows)
-        df.to_excel(
-            Path(config["output"]["base"]) / config["output"]["files"]["excel"],
-            index=False,
-        )
+    # Save results to Excel
+    df = pd.DataFrame(rows)
+    df.to_excel(
+        Path(config["output"]["base"]) / config["output"]["files"]["excel"],
+        index=False,
+    )
 
     print("Done!")
