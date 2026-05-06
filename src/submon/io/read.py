@@ -49,7 +49,7 @@ def load_subsidence_areas(config: dict) -> gpd.GeoDataFrame:
 
 def load_subsidence_rasters(
     config: dict, target_grid: xr.DataArray
-) -> dict[SubsidenceRaster]:
+) -> dict[str, xr.Dataset]:
     """
     Load subsidence rasters from disk based on a configuration dictionary, applying
     coordinate reference system and unit conversions as specified.
@@ -175,8 +175,12 @@ def load_and_convert_raster(
     if subsidence_positive:
         da *= -1
 
-    if "_FillValue" in da.attrs:
+    if "_FillValue" in da.attrs and da.attrs["_FillValue"] is not None:
         da = da.where(da != da.attrs["_FillValue"], other=np.nan)
-        da = da.rio.write_nodata(np.nan, inplace=True)
+
+    extreme_threshold = -1e20
+    da = da.where(da > extreme_threshold, other=np.nan)
+    da = da.where(np.isfinite(da), other=np.nan)
+    da = da.rio.write_nodata(np.nan, inplace=False)
 
     return da
