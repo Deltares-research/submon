@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest import result
 
 import geopandas as gpd
 import numpy as np
@@ -13,7 +12,7 @@ if TYPE_CHECKING:
     from pyproj import CRS
 
 
-def sum_subsidence_rasters(ds_l: xr.Dataset, ds_r: xr.Dataset) -> xr.Dataset:
+def sum_datasets_per_datavar(ds_l: xr.Dataset, ds_r: xr.Dataset) -> xr.Dataset:
     """
     Parameters
     ----------
@@ -33,27 +32,22 @@ def sum_subsidence_rasters(ds_l: xr.Dataset, ds_r: xr.Dataset) -> xr.Dataset:
     CRS and units, and are on the same grid. Data variables that are missing from either
     side are treated as 0 so the other side is preserved.
     """
+    all_vars = sorted(set(ds_l.data_vars) & set(ds_r.data_vars))
+    data_vars = {name: ds_l.get(name, 0) + ds_r.get(name, 0) for name in all_vars}
 
-    all_vars = sorted(set(ds_l.data_vars) | set(ds_r.data_vars))
-    data_vars = dict((name, ds_l.get(name, 0) + ds_r.get(name, 0)) for name in all_vars)
-
-    return xr.Dataset(
-        data_vars=data_vars,
-        coords=ds_l.coords,
-        attrs=dict(ds_l.attrs),
-    )
+    return xr.Dataset(data_vars=data_vars, coords=ds_l.coords, attrs=ds_l.attrs)
 
 
 def create_grid_from_subsidence_areas(
-    subsidence_areas: gpd.GeoDataFrame, resolution: float
+    subsidence_areas: xr.Dataset, resolution: float
 ) -> xr.DataArray:
     """
     Create a grid of the specified resolution from a list of subsidence area shapefiles.
 
     Parameters
     ----------
-    subsidence_areas : gpd.GeoDataFrame
-        A GeoDataFrame containing subsidence area polygons.
+    subsidence_areas : xr.Dataset
+        A Dataset containing subsidence area polygons.
     resolution : float
         The desired resolution of the output grid in the same units as the CRS of the
         input shapefiles.

@@ -260,3 +260,19 @@ def log_memory_usage():
     process = psutil.Process()
     mem_info = process.memory_info()
     return f"Memory usage: {mem_info.rss / (1024**2):.2f} MB"
+
+
+def format_stats_as_text(stats: dict[str, float], nd: int = 3) -> str:
+    """
+    Format stats as: mean (min – max)
+
+    """
+    mean = stats.get("mean")
+    minv = stats.get("min")
+    maxv = stats.get("max")
+
+    if any(v is None or not np.isfinite(v) for v in (mean, minv, maxv)):
+        return ""
+
+    half_width = max(abs(mean - minv), abs(maxv - mean))
+    return f"{mean:.{nd}f} ± {half_width:.{nd}f}"
