@@ -9,10 +9,11 @@ gia = "gia"
 tectonic = "tectonic"
 combined = "subsidence_combined"
 mining = "mining"
-total = "subsidence_total"
+total_last30 = "subsidence_last30"
+total_next30 = "subsidence_next30"
 
 [output.files]
-excel = "subsidence_total/deelgebieden_zonal_stats.xlsx"
+excel = "deelgebieden_zonal_stats.xlsx"
 
 [output_config]
 epsg = 32631
