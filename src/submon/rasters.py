@@ -12,7 +12,9 @@ if TYPE_CHECKING:
     from pyproj import CRS
 
 
-def sum_datasets_per_datavar(ds_l: xr.Dataset, ds_r: xr.Dataset) -> xr.Dataset:
+def sum_datasets_per_datavar(
+    ds_l: xr.Dataset, ds_r: xr.Dataset, uncertainty_attr: str = "uncertainty"
+) -> xr.Dataset:
     """
     Parameters
     ----------

@@ -146,6 +146,8 @@ def _(
     if file.is_dir():
         name = data.name or "data"
         file = file / f"{prefix}{name}.tif"
+    else:
+        file = Path(file).with_suffix(".tif")
 
     if compress:
         data.rio.to_raster(file, driver="GTiff", compress="LZW")

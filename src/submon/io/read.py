@@ -93,7 +93,7 @@ def load_subsidence_rasters(
                 raster_info["epsg"],
                 config["output_config"]["epsg"],
                 target_grid=target_grid,
-                subsidence_positive=raster_info["subsidence_positive"],
+                invert=raster_info["invert"],
                 **raster_info.get("reader_kwargs", {}),
             )
 
@@ -120,7 +120,7 @@ def load_and_convert_raster(
     from_epsg: int | str | CRS,
     to_epsg: int | str | CRS,
     target_grid: xr.DataArray = None,
-    subsidence_positive: bool = True,
+    invert: bool = True,
     **kwargs,
 ) -> xr.DataArray:
     """
@@ -172,7 +172,7 @@ def load_and_convert_raster(
     factor = units.calculate_dzdt_factor(dzdt_from, dzdt_to)
     da *= factor
 
-    if subsidence_positive:
+    if invert:
         da *= -1
 
     if "_FillValue" in da.attrs and da.attrs["_FillValue"] is not None:
