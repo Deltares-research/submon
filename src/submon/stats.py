@@ -45,13 +45,19 @@ def statistics_from_dataarrays(
                 f"Invalid statistic '{stat}' specified. Must be one of {STAT_TO_FUNC.keys()}."
             )
 
-        if invert_min_max and stat in ("min", "max"):
-            stat = "max" if stat == "min" else "min"
+        if invert_min_max:
+            if stat == "min":
+                func = STAT_TO_FUNC["max"]  # minst daling
+            elif stat == "max":
+                func = STAT_TO_FUNC["min"]  # meest daling
+            else:
+                func = STAT_TO_FUNC[stat]
+        else:
+            func = STAT_TO_FUNC[stat]
 
-        da = scenario_data.reduce(STAT_TO_FUNC[stat], dim="scenario")
+        da = scenario_data.reduce(func, dim="scenario")
 
         da.attrs["statistic_type"] = stat
-
         results[stat] = da
 
     return xr.Dataset(results)
@@ -87,6 +93,7 @@ def calculate_uncertainty(ds: xr.Dataset) -> xr.Dataset:
 
     return uncertainty
 
+
 def combine_uncertainties(*uncertainties: float) -> float:
     """
     Combine uncertainty measures using the square root of the sum of squares method.
@@ -102,7 +109,8 @@ def combine_uncertainties(*uncertainties: float) -> float:
         The combined uncertainty measure.
 
     """
-    return np.sqrt(sum(u ** 2 for u in uncertainties))
+    return np.sqrt(sum(u**2 for u in uncertainties))
+
 
 def predefined_statistics(da: xr.DataArray, factors: dict[str, float]) -> xr.Dataset:
     """
@@ -153,23 +161,3 @@ def mean_value_of_dataset_vars(ds: xr.Dataset, skipna: bool = True) -> dict[str,
     for name, da in ds.data_vars.items():
         result[name] = float(da.mean(skipna=skipna))
     return result
-
-
-def volume(mean_value: float, area_m2: float) -> float:
-    """
-    Convert a mean value and area to a volume in millions.
-
-    Parameters
-    ----------
-    mean_value : float
-        Mean value (e.g. subsidence in metres).
-    area_m2 : float
-        Area in square metres.
-
-    Returns
-    -------
-    float
-        Volume expressed in millions (division by 1e6).
-
-    """
-    return mean_value * area_m2 / 1e6
