@@ -63,7 +63,7 @@ def read_xyz(
     # Reading the XYZ-file
     sep = utils.find_xyz_sep(xyz_file)
     if sep == " ":
-        df = pd.read_csv(file, header=None, names=["x", "y", "z"], sep="\s+")
+        df = pd.read_csv(file, header=None, names=["x", "y", "z"], sep=r"\s+")
     else:
         df = pd.read_csv(file, sep=sep, header=None, names=["x", "y", "z"])
 
