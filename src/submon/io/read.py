@@ -94,6 +94,7 @@ def load_subsidence_rasters(
                 config["output_config"]["epsg"],
                 target_grid=target_grid,
                 invert=raster_info["invert"],
+                data_var=raster_info.get("data_var", None),
                 **raster_info.get("reader_kwargs", {}),
             )
 
@@ -121,6 +122,7 @@ def load_and_convert_raster(
     to_epsg: int | str | CRS,
     target_grid: xr.DataArray = None,
     invert: bool = True,
+    data_var: str = None,
     **kwargs,
 ) -> xr.DataArray:
     """
@@ -159,6 +161,11 @@ def load_and_convert_raster(
             path,
             gridded=kwargs.get("gridded", True),
         )
+    elif Path(path).suffix in [".nc"]:
+        if data_var is None:
+            da = xr.open_dataarray(path, **kwargs).squeeze()
+        else:
+            da = xr.open_dataset(path, **kwargs)[data_var].squeeze()
     else:
         da = rioxarray.open_rasterio(path, **kwargs).squeeze()
 

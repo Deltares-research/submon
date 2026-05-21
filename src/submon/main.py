@@ -1,6 +1,6 @@
 import logging
-import tomllib
 import sys
+import tomllib
 from pathlib import Path
 
 import geopandas as gpd
@@ -63,14 +63,15 @@ if __name__ == "__main__":
 
     # mining data
     logger.info("Processing mining data")
-    mining_da = data["mining"][0]
+    mining_da_last_x_years = data["mining"][0]
+    mining_da_next_x_years = data["mining"][1]
 
     # mining with uncertainty
     mining_last_x_years = stats.predefined_statistics(
-        mining_da, {"mean": 1.0, "min": 0.75, "max": 1.25}
+        mining_da_last_x_years, {"mean": 1.0, "min": 0.75, "max": 1.25}
     )
     mining_next_x_years = stats.predefined_statistics(
-        mining_da, {"mean": 1.0, "min": 0.50, "max": 1.50}
+        mining_da_next_x_years, {"mean": 1.0, "min": 0.50, "max": 1.50}
     )
 
     # total subsidence with mining uncertainty
@@ -94,7 +95,8 @@ if __name__ == "__main__":
         ("gia", gia_stats),
         ("tectonic", tect_stats),
         ("geological", geological_stats),
-        ("mining", mining_last_x_years),  # of mining_next_x_years (zie toelichting)
+        ("mining_last", mining_last_x_years),
+        ("mining_next", mining_next_x_years),
         ("total_subsidence_last", subsidence_last_x_years),
         ("total_subsidence_next", subsidence_next_x_years),
     ]:
