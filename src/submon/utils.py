@@ -284,6 +284,8 @@ def format_for_output_table(
     str
         Formatted string representing the value and its uncertainty.
     """
-    value *= units.calculate_dzdt_factor(current_unit, desired_unit)
-    uncertainty *= units.calculate_dzdt_factor(current_unit, desired_unit)
-    return f"{value:.{nd}f} ± {uncertainty:.{nd}f}"
+    new_value = value * units.calculate_dzdt_factor(current_unit, desired_unit)
+    new_uncertainty = uncertainty * units.calculate_dzdt_factor(
+        current_unit, desired_unit
+    )
+    return f"{new_value:.{nd}f} ± {new_uncertainty:.{nd}f}"

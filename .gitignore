@@ -109,6 +109,7 @@ ENV/
 *.gml
 *.dbf
 *.xlsx
+*.gpkg
 
 !data/*.nc
 

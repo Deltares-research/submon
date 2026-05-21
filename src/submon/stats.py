@@ -8,6 +8,13 @@ STAT_TO_FUNC = {
     "median": np.nanmedian,
 }
 
+STAT_TO_FUNC_INVERTED = {
+    "mean": np.nanmean,
+    "min": np.nanmax,  #  = minste bodemdaling
+    "max": np.nanmin,  # = meeste bodemdaling
+    "median": np.nanmedian,
+}
+
 
 def statistics_from_dataarrays(
     data_arrays: list[xr.DataArray],
@@ -36,26 +43,18 @@ def statistics_from_dataarrays(
         computed over the 'scenario' dimension.
 
     """
+    stat_func_mapping = STAT_TO_FUNC_INVERTED if invert_min_max else STAT_TO_FUNC
+
     scenario_data = xr.concat(data_arrays, dim="scenario")
 
     results = {}
     for stat in stats_to_calculate:
-        if stat not in STAT_TO_FUNC.keys():
+        if stat not in stat_func_mapping.keys():
             raise ValueError(
-                f"Invalid statistic '{stat}' specified. Must be one of {STAT_TO_FUNC.keys()}."
+                f"Invalid statistic '{stat}' specified. Must be one of {stat_func_mapping.keys()}."
             )
 
-        if invert_min_max:
-            if stat == "min":
-                func = STAT_TO_FUNC["max"]  # minst daling
-            elif stat == "max":
-                func = STAT_TO_FUNC["min"]  # meest daling
-            else:
-                func = STAT_TO_FUNC[stat]
-        else:
-            func = STAT_TO_FUNC[stat]
-
-        da = scenario_data.reduce(func, dim="scenario")
+        da = scenario_data.reduce(stat_func_mapping[stat], dim="scenario")
 
         da.attrs["statistic_type"] = stat
         results[stat] = da

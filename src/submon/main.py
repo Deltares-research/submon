@@ -1,5 +1,6 @@
 import logging
 import tomllib
+import sys
 from pathlib import Path
 
 import geopandas as gpd
@@ -26,7 +27,10 @@ and calculate zonal statistics for specified areas.
 
 if __name__ == "__main__":
     logger.info("Starting subsidence monitoring workflow...")
-    config_path = Path(__file__).parents[2] / Path("config/example_config.toml")
+    try:
+        config_path = Path(sys.argv[1])
+    except IndexError:
+        config_path = Path(__file__).parents[2] / Path("config/config.toml")
     with open(config_path, "rb") as f:
         config = tomllib.load(f)
 
@@ -44,7 +48,6 @@ if __name__ == "__main__":
 
     # GIA
     # statistics (mean, max en min) from the statistics_from_subsidence_raster extraction
-    # TODO Erik: invert_min_max iets aangepast in de functie: stats.statistics_from_dataarrays omdat GIA nog steeds de maximale bodemdalingswaarde bij min had staan
     logger.info("Processing GIA")
     gia_stats = stats.statistics_from_dataarrays(
         data["gia"], config["gia"]["stats"], invert_min_max=True
@@ -98,13 +101,10 @@ if __name__ == "__main__":
         out_dir = Path(config["output_paths"]["base"]) / config["output_paths"][key]
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        for stat in ["mean", "min", "max"]:
-            if stat not in obj.data_vars:
-                continue  # voorkomt crash als min/max niet bestaan
-
+        for datavar in obj.data_vars:
             to_geotiff(
-                obj[stat],
-                out_dir / f"{key}_{stat}.tif",
+                obj[datavar],
+                out_dir / f"{key}_{datavar}.tif",
                 compress=True,
             )
 
@@ -183,92 +183,6 @@ if __name__ == "__main__":
             geological_uncertainty, mining_next_x_years_uncertainty
         )
 
-        # Tabel opmaak:
-        # table components
-        components = {
-            "GIA": {
-                "last": (gia_subsidence, gia_uncertainty),
-                "next": (gia_subsidence, gia_uncertainty),
-            },
-            "Tectonic": {
-                "last": (tect_subsidence, tect_uncertainty),
-                "next": (tect_subsidence, tect_uncertainty),
-            },
-            "Geological": {
-                "last": (geological_subsidence, geological_uncertainty),
-                "next": (geological_subsidence, geological_uncertainty),
-            },
-            "Mining": {
-                "last": (
-                    mining_last_x_years_subsidence,
-                    mining_last_x_years_uncertainty,
-                ),
-                "next": (
-                    mining_next_x_years_subsidence,
-                    mining_next_x_years_uncertainty,
-                ),
-            },
-            "Total": {
-                "last": (total_last_x_years_subsidence, total_last_x_years_uncertainty),
-                "next": (total_next_x_years_subsidence, total_next_x_years_uncertainty),
-            },
-        }
-
-        # TODO: Ik kreeg het met enkel de calculate_dzdt_factor niet goed, dus heb voor zowel over period als volume een extra functie gemaakt?
-        # TODO:  Misschien is dit echt totaal niet handig, maar wist even niet hoe het op te lossen. Misschien heb ik ook wel te moeilijk gedacht met dit, kijk maar of dit handiger kan.
-        period_results = {}
-
-        period_map = {
-            "last": last_x_years,
-            "next": next_x_years,
-        }
-
-        for name, spec in components.items():
-            for label, years in period_map.items():
-                value, uncertainty = spec[label]
-
-                val_cm, unc_cm = units.dzdt_to_dz_over_period(
-                    value=value,
-                    uncertainty=uncertainty,
-                    current_unit=current_unit,
-                    desired_length_unit="cm",
-                    years=years,
-                )
-
-                period_results[f"{name}_{label}_{years}_years_cm"] = (
-                    f"{val_cm:.2f} ± {unc_cm:.2f}"
-                )
-
-        volume_results = {}  # Excel (strings)
-        volume_numbers = {}  # Shapefile (floats)
-
-        volume_components = {"Geological", "Mining", "Total"}
-        period_map = {"last": last_x_years, "next": next_x_years}
-
-        for name, spec in components.items():
-            if name not in volume_components:
-                continue
-
-            for label, years in period_map.items():
-                value, unc = spec[label]
-
-                vol, vol_unc = units.volume_from_dzdt(
-                    value,
-                    unc,
-                    current_unit,
-                    years,
-                    area,
-                )
-
-                key = f"{name}_Volume_{label}_{years}"
-
-                # Excel
-                volume_results[f"{key}_Mm3"] = f"{vol:.3f} ± {vol_unc:.3f}"
-
-                # Shapefile
-                volume_numbers[f"{key}_Mm3"] = float(vol)
-                volume_numbers[f"{key}_unc"] = float(vol_unc)
-
         # Append all results to rows list for Excel and shape_rows for shapefile
         rows.append(
             {
@@ -283,7 +197,76 @@ if __name__ == "__main__":
                 "Geological_subsidence_mm/yr": utils.format_for_output_table(
                     geological_subsidence, geological_uncertainty, current_unit, "mm/yr"
                 ),
-                **period_results,
+                f"GIA_last_{last_x_years}_years_cm": utils.format_for_output_table(
+                    gia_subsidence,
+                    gia_uncertainty,
+                    current_unit,
+                    f"cm/{last_x_years}yr",
+                    nd=2,
+                ),
+                f"GIA_next_{next_x_years}_years_cm": utils.format_for_output_table(
+                    gia_subsidence,
+                    gia_uncertainty,
+                    current_unit,
+                    f"cm/{next_x_years}yr",
+                    nd=2,
+                ),
+                f"Tectonic_last_{last_x_years}_years_cm": utils.format_for_output_table(
+                    tect_subsidence,
+                    tect_uncertainty,
+                    current_unit,
+                    f"cm/{last_x_years}yr",
+                    nd=2,
+                ),
+                f"Tectonic_next_{next_x_years}_years_cm": utils.format_for_output_table(
+                    tect_subsidence,
+                    tect_uncertainty,
+                    current_unit,
+                    f"cm/{next_x_years}yr",
+                    nd=2,
+                ),
+                f"Geological_last_{last_x_years}_years_cm": utils.format_for_output_table(
+                    geological_subsidence,
+                    geological_uncertainty,
+                    current_unit,
+                    f"cm/{last_x_years}yr",
+                    nd=2,
+                ),
+                f"Geological_next_{next_x_years}_years_cm": utils.format_for_output_table(
+                    geological_subsidence,
+                    geological_uncertainty,
+                    current_unit,
+                    f"cm/{next_x_years}yr",
+                    nd=2,
+                ),
+                f"Mining_last_{last_x_years}_years_cm": utils.format_for_output_table(
+                    mining_last_x_years_subsidence,
+                    mining_last_x_years_uncertainty,
+                    current_unit,
+                    f"cm/{last_x_years}yr",
+                    nd=2,
+                ),
+                f"Mining_next_{next_x_years}_years_cm": utils.format_for_output_table(
+                    mining_next_x_years_subsidence,
+                    mining_next_x_years_uncertainty,
+                    current_unit,
+                    f"cm/{next_x_years}yr",
+                    nd=2,
+                ),
+                f"Total_last_{last_x_years}_years_cm": utils.format_for_output_table(
+                    total_last_x_years_subsidence,
+                    total_last_x_years_uncertainty,
+                    current_unit,
+                    f"cm/{last_x_years}yr",
+                    nd=2,
+                ),
+                f"Total_next_{next_x_years}_years_cm": utils.format_for_output_table(
+                    total_next_x_years_subsidence,
+                    total_next_x_years_uncertainty,
+                    current_unit,
+                    f"cm/{next_x_years}yr",
+                    nd=2,
+                ),
                 f"Total_subsidence_last_{last_x_years}_cm/yr": utils.format_for_output_table(
                     total_last_x_years_subsidence,
                     total_last_x_years_uncertainty,
@@ -296,46 +279,84 @@ if __name__ == "__main__":
                     current_unit,
                     "cm/yr",
                 ),
-                **volume_results,
+                f"Geological_Volume_last_{last_x_years}_Mm3": utils.format_for_output_table(
+                    geological_subsidence * area,
+                    geological_uncertainty * area,
+                    current_unit,
+                    f"Mm/{last_x_years}yr",
+                ),
+                f"Geological_Volume_next_{next_x_years}_Mm3": utils.format_for_output_table(
+                    geological_subsidence * area,
+                    geological_uncertainty * area,
+                    current_unit,
+                    f"Mm/{next_x_years}yr",
+                ),
+                f"Mining_Volume_last_{last_x_years}_Mm3": utils.format_for_output_table(
+                    mining_last_x_years_subsidence * area,
+                    mining_last_x_years_uncertainty * area,
+                    current_unit,
+                    f"Mm/{last_x_years}yr",
+                ),
+                f"Mining_Volume_next_{next_x_years}_Mm3": utils.format_for_output_table(
+                    mining_next_x_years_subsidence * area,
+                    mining_next_x_years_uncertainty * area,
+                    current_unit,
+                    f"Mm/{next_x_years}yr",
+                ),
+                f"Total_Volume_last_{last_x_years}_Mm3": utils.format_for_output_table(
+                    total_last_x_years_subsidence * area,
+                    total_last_x_years_uncertainty * area,
+                    current_unit,
+                    f"Mm/{last_x_years}yr",
+                ),
+                f"Total_Volume_next_{next_x_years}_Mm3": utils.format_for_output_table(
+                    total_next_x_years_subsidence * area,
+                    total_next_x_years_uncertainty * area,
+                    current_unit,
+                    f"Mm/{next_x_years}yr",
+                ),
             }
         )
+
+        # For the shapefile, we want to keep the volume numbers as floats.
         shape_rows.append(
             {
                 "Gebied": gebied,
                 "Oppervlakte": area,
-                "geometry": geom,
-                # Total subsidence volume – last X years
-                f"Total_Volume_last_{last_x_years}_Mm3": volume_numbers[
-                    f"Total_Volume_last_{last_x_years}_Mm3"
-                ],
-                f"Total_Volume_last_{last_x_years}_unc": volume_numbers[
-                    f"Total_Volume_last_{last_x_years}_unc"
-                ],
-                # Total subsidence volume – next X years
-                f"Total_Volume_next_{next_x_years}_Mm3": volume_numbers[
-                    f"Total_Volume_next_{next_x_years}_Mm3"
-                ],
-                f"Total_Volume_next_{next_x_years}_unc": volume_numbers[
-                    f"Total_Volume_next_{next_x_years}_unc"
-                ],
+                f"Total_Volume_last_{last_x_years}_Mm3": total_last_x_years_subsidence
+                * area
+                * units.calculate_dzdt_factor(current_unit, f"Mm/{last_x_years}yr"),
+                f"Total_Volume_next_{next_x_years}_Mm3": total_next_x_years_subsidence
+                * area
+                * units.calculate_dzdt_factor(current_unit, f"Mm/{next_x_years}yr"),
+                f"Total_Volume_last_{last_x_years}_unc": total_last_x_years_uncertainty
+                * area
+                * units.calculate_dzdt_factor(current_unit, f"Mm/{last_x_years}yr"),
+                f"Total_Volume_next_{next_x_years}_unc": total_next_x_years_uncertainty
+                * area
+                * units.calculate_dzdt_factor(current_unit, f"Mm/{next_x_years}yr"),
             }
         )
-    # Save results to Excel
+
+    # Create dataframes
     df = pd.DataFrame(rows)
+    gdf = gpd.GeoDataFrame(
+        shape_rows, geometry=subsidence_areas.geometry, crs=subsidence_areas.crs
+    )
+
+    # Save to Excel
     logger.info("Saving zonal statistics and volumes to output Excel...")
     df.to_excel(
         Path(config["output_paths"]["base"]) / config["output_paths"]["output_excel"],
         index=False,
     )
 
-    # Save results to a shapefile with attributetable
-    gdf_out = gpd.GeoDataFrame(shape_rows, crs=subsidence_areas.crs)
-
+    # Save results to a shapefile
+    logger.info("Saving zonal statistics and volumes to output shapefile...")
     out_shape = (
         Path(config["output_paths"]["base"]) / config["output_paths"]["output_shape"]
     )
-
-    gdf_out.to_file(
+    gdf.to_file(
         out_shape.with_suffix(".gpkg"),
         layer="subsidence_volumes",
         driver="GPKG",

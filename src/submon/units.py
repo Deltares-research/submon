@@ -1,4 +1,10 @@
-DZ = {"mm": 1, "cm": 10, "dm": 100, "m": 1000}
+DZ = {
+    "mm": 1,
+    "cm": 10,
+    "dm": 100,
+    "m": 1000,
+    "Mm": 1e9,
+}
 DT = {
     "s": 1,
     "min": 60,
@@ -72,90 +78,3 @@ def calculate_dzdt_factor(dzdt_from: str, dzdt_to: str) -> float:
     factor_dt = DT[dt_from] / DT[dt_to]
 
     return factor_dz / factor_dt
-
-
-def dzdt_to_dz_over_period(
-    value: float,
-    uncertainty: float,
-    current_unit: str,
-    desired_length_unit: str,
-    years: float,
-) -> tuple[float, float]:
-    """
-    Convert a dz/dt value (e.g. mm/yr) to a length over a given period
-    (e.g. cm over X years), including uncertainty.
-
-    Parameters
-    ----------
-    value : float
-        Mean dz/dt value.
-    uncertainty : float
-        Uncertainty in dz/dt.
-    current_unit : str
-        Unit of value and uncertainty, e.g. "mm/yr".
-    desired_length_unit : str
-        Desired length unit for output, e.g. "cm", "m".
-    years : float
-        Length of period in years.
-
-    Returns
-    -------
-    tuple[float, float]
-        (value_over_period, uncertainty_over_period) in desired_length_unit.
-    """
-    # Convert dz/dt to desired dz/dt unit per year
-    factor = calculate_dzdt_factor(current_unit, f"{desired_length_unit}/yr")
-
-    value_out = value * factor * years
-    uncertainty_out = uncertainty * factor * years
-
-    return value_out, uncertainty_out
-
-
-def volume_from_dzdt(
-    value: float,
-    uncertainty: float,
-    dzdt_unit: str,
-    years: float,
-    area_m2: float,
-) -> tuple[float, float]:
-    """
-    Convert a subsidence rate (dz/dt) over a given period to volume in million m³,
-    including uncertainty.
-
-    Parameters
-    ----------
-    value : float
-        Subsidence rate (e.g.  mm/yr, cm/yr, m/yr).
-    uncertainty : float
-        Uncertainty in the same dz/dt unit.
-    dzdt_unit : str
-        Unit of value and uncertainty, e.g. "mm/yr".
-    years : float
-        Number of years (period).
-    area_m2 : float
-        Area in square metres. MUST be m².
-
-    Returns
-    -------
-    tuple[float, float]
-        (volume_mln_m3, volume_uncertainty_mln_m3)
-    """
-    if area_m2 <= 0:
-        raise ValueError("area_m2 must be a positive area in m²")
-
-    # dz/dt -> m/yr
-    factor = calculate_dzdt_factor(dzdt_unit, "m/yr")
-
-    value_m_yr = value * factor
-    uncertainty_m_yr = uncertainty * factor
-
-    # m/yr -> m over periode
-    value_m = value_m_yr * years
-    uncertainty_m = uncertainty_m_yr * years
-
-    # m * m² -> m³ -> miljoen m³
-    volume_mln = (value_m * area_m2) / 1e6
-    volume_unc_mln = (uncertainty_m * area_m2) / 1e6
-
-    return volume_mln, volume_unc_mln
