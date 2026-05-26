@@ -51,8 +51,7 @@ def _(
             file,
             engine="h5netcdf",
             encoding={
-                data.name
-                or "__xarray_dataarray_variable__": {
+                data.name or "__xarray_dataarray_variable__": {
                     "zlib": True,
                     "complevel": compress_level,
                 }
@@ -105,8 +104,8 @@ def _(
 def to_geotiff(
     data: xr.DataArray | xr.Dataset,
     file: str | WindowsPath,
-    compress=False,
-    data_var=None,
+    compress: bool = False,
+    data_var: str | list[str] = None,
 ) -> None:
     """
     Export an xarray.DataArray with (y, x) dimensions to a compressed GeoTIFF file
@@ -137,11 +136,19 @@ def to_geotiff(
 def _(
     data: xr.DataArray,
     file: str | WindowsPath,
-    compress=False,
+    compress: bool = False,
+    prefix: str = "",
 ) -> None:
     """
     Implementation of to_geotiff for xr.DataArray objects.
     """
+
+    if file.is_dir():
+        name = data.name or "data"
+        file = file / f"{prefix}{name}.tif"
+    else:
+        file = Path(file).with_suffix(".tif")
+
     if compress:
         data.rio.to_raster(file, driver="GTiff", compress="LZW")
     else:
@@ -152,16 +159,31 @@ def _(
 def _(
     data: xr.Dataset,
     file: str | WindowsPath,
-    compress=False,
-    data_var=None,
+    compress: bool = False,
+    prefix: str = "",
 ) -> None:
     """
-    Implementation of to_geotiff for xr.Dataset objects. Requires the data variable to
-    export to be specified.
+    Export all data_vars in an xarray.Dataset to separate GeoTIFF files.
+    Each data_var must have dimensions ('y', 'x').
     """
-    if data_var is None:
-        raise ValueError(
-            "When exporting an xarray.Dataset, you must specify the data variable to export."
+    file = Path(file)
+
+    if not file.is_dir():
+        raise ValueError("When exporting an xr.Dataset, 'file' must be a directory.")
+
+    file.mkdir(parents=True, exist_ok=True)
+
+    for var in data.data_vars:
+        da = data[var]
+
+        if set(da.dims) != {"y", "x"}:
+            raise ValueError(
+                f"Cannot export '{var}' to GeoTIFF, dims are {da.dims}. "
+                "Select a 2D slice before exporting."
+            )
+
+        to_geotiff(
+            da,
+            file / f"{prefix}{var}.tif",
+            compress=compress,
         )
-    else:
-        to_geotiff(data[data_var], file, compress=compress)

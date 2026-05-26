@@ -8,6 +8,8 @@ from pathlib import Path
 import numpy as np
 import psutil
 
+from submon import units
+
 
 def get_current_datetime(format: str = "%Y-%m-%dT%H:%MZ") -> str:
     """
@@ -260,3 +262,30 @@ def log_memory_usage():
     process = psutil.Process()
     mem_info = process.memory_info()
     return f"Memory usage: {mem_info.rss / (1024**2):.2f} MB"
+
+
+def format_for_output_table(
+    value: float, uncertainty: float, current_unit: str, desired_unit: str, nd: int = 3
+) -> str:
+    """
+    Format stats as: mean ± uncertainty
+
+    Parameters
+    ----------
+    value : float
+        The mean value.
+    uncertainty : float
+        The uncertainty value.
+    nd : int, optional
+        Number of decimal places, by default 3.
+
+    Returns
+    -------
+    str
+        Formatted string representing the value and its uncertainty.
+    """
+    new_value = value * units.calculate_dzdt_factor(current_unit, desired_unit)
+    new_uncertainty = uncertainty * units.calculate_dzdt_factor(
+        current_unit, desired_unit
+    )
+    return f"{new_value:.{nd}f} ± {new_uncertainty:.{nd}f}"

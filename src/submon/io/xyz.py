@@ -63,7 +63,7 @@ def read_xyz(
     # Reading the XYZ-file
     sep = utils.find_xyz_sep(xyz_file)
     if sep == " ":
-        df = pd.read_csv(file, header=None, names=["x", "y", "z"], sep="\s+")
+        df = pd.read_csv(file, header=None, names=["x", "y", "z"], sep=r"\s+")
     else:
         df = pd.read_csv(file, sep=sep, header=None, names=["x", "y", "z"])
 
@@ -111,7 +111,7 @@ def __xyz_gridded_points(data: pd.DataFrame) -> xr.DataArray:
     res_y = np.mean(np.diff(coord_y))
 
     idxs_x = np.int32(np.round((sorted_data["x"] - bounds[0]) / res_x))
-    idxs_y = np.int32(np.round((sorted_data["y"] - bounds[-1]) / res_y))
+    idxs_y = np.int32(np.round((bounds[-1] - sorted_data["y"]) / res_y))
 
     # DataArray Attributes
     transform_attr = (

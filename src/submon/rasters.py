@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,76 +12,44 @@ if TYPE_CHECKING:
     from pyproj import CRS
 
 
-@dataclass
-class SubsidenceRaster:
-    da: xr.DataArray
-    source_path: str | Path | list[str | Path]
-    subsidence_type: str
-    statistic_type: str | None
-    original_crs: str | int | CRS
-    converted_crs: str | int | CRS
-    original_units: str
-    converted_units: str
-
-    def __repr__(self):
-        if isinstance(self.source_path, list):
-            source_paths = [Path(p).stem for p in self.source_path]
-            source_paths_str = ", ".join(source_paths)
-        else:
-            source_paths_str = Path(self.source_path).stem
-
-        return f"SubsidenceRaster(source_path={source_paths_str}, subsidence_type={self.subsidence_type}, statistic_type={self.statistic_type}, original_crs={self.original_crs}, converted_crs={self.converted_crs}, original_units={self.original_units}, converted_units={self.converted_units})"
-
-
-def sum_subsidence_rasters(
-    raster_l: SubsidenceRaster, raster_r: SubsidenceRaster
-) -> SubsidenceRaster:
+def sum_datasets_per_datavar(
+    ds_l: xr.Dataset, ds_r: xr.Dataset, uncertainty_attr: str = "uncertainty"
+) -> xr.Dataset:
     """
-    Combine two SubsidenceRasters into a single one by summing their DataArrays.
-
     Parameters
     ----------
-    raster_l : SubsidenceRaster
-        The left-hand side SubsidenceRaster to combine.
-    raster_r : SubsidenceRaster
-        The right-hand side SubsidenceRaster to combine.
+    ds_l : xarray.Dataset
+        The left-hand side Dataset to combine.
+    ds_r : xarray.Dataset
+        The right-hand side Dataset to combine.
 
     Returns
     -------
-    SubsidenceRaster
-        A new SubsidenceRaster containing the combined DataArray and metadata from the
-        input rasters.
+    xarray.Dataset
+        A new Dataset containing the summed data variables.
 
     Notes
     -----
-    This function assumes that the input rasters have already been converted to the same
-    CRS and units. The resulting DataArray is the sum of the two input DataArrays, and
-    the metadata is taken from the left-hand side raster.
+    This function assumes that the input datasets have already been converted to the same
+    CRS and units, and are on the same grid. Data variables that are missing from either
+    side are treated as 0 so the other side is preserved.
     """
-    combined_da = raster_l.da + raster_r.da
+    all_vars = sorted(set(ds_l.data_vars) & set(ds_r.data_vars))
+    data_vars = {name: ds_l.get(name, 0) + ds_r.get(name, 0) for name in all_vars}
 
-    return SubsidenceRaster(
-        da=combined_da,
-        source_path=[raster_l.source_path, raster_r.source_path],
-        subsidence_type=raster_l.subsidence_type + " + " + raster_r.subsidence_type,
-        statistic_type=raster_l.statistic_type,
-        original_crs=raster_l.original_crs,
-        converted_crs=raster_l.converted_crs,
-        original_units=raster_l.original_units,
-        converted_units=raster_l.converted_units,
-    )
+    return xr.Dataset(data_vars=data_vars, coords=ds_l.coords, attrs=ds_l.attrs)
 
 
 def create_grid_from_subsidence_areas(
-    subsidence_areas: gpd.GeoDataFrame, resolution: float
+    subsidence_areas: xr.Dataset, resolution: float
 ) -> xr.DataArray:
     """
     Create a grid of the specified resolution from a list of subsidence area shapefiles.
 
     Parameters
     ----------
-    subsidence_areas : gpd.GeoDataFrame
-        A GeoDataFrame containing subsidence area polygons.
+    subsidence_areas : xr.Dataset
+        A Dataset containing subsidence area polygons.
     resolution : float
         The desired resolution of the output grid in the same units as the CRS of the
         input shapefiles.

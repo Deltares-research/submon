@@ -18,3 +18,20 @@ Finally install the pre-commit hooks that enable automatic checks upon committin
 ```
 pre-commit install
 ```
+
+## How to use
+To run the calculations, navigate in cmd to the submon folder. Then run:
+
+```
+pixi shell
+```
+
+```
+python run.py
+```
+
+If you do not give a path to a config file like in the example above, it will by default use ./config/config.toml. If you want to run with a custom config, use:
+
+```
+python run.py <path-to-config-file>
+```
