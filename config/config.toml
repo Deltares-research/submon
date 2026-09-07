@@ -1,8 +1,8 @@
 [investigated_areas]
-path = "n:/Projects/11205000/11205236/C. Report - advise/3. Morfologie kust/Bodemdaling/Voor Erik - volumes/Deelgebieden shapefile/Deelgebieden_def.shp"
+path = "P:/1204421-kpp-benokust/2026/03-morfologiekust/Bodemdaling/Deelgebieden shapefile/Deelgebieden_def.shp"
 
 [output_paths]
-base = "./output"
+base = "./output/deelgebieden_deltares/clipped/last30_next30"
 gia = "gia"
 tectonic = "tectonic"
 geological = "geological"
@@ -10,15 +10,16 @@ mining_last = "mining_last"
 mining_next = "mining_next"
 total_subsidence_last = "total_subsidence_last"
 total_subsidence_next = "total_subsidence_next"
-output_excel = "deelgebieden_zonal_stats.xlsx"
-output_shape = "total_subsidence.shp"
+output_excel = "deelgebieden_zonal_stats_30yr.xlsx"
+output_shape = "total_subsidence_30yr.shp"
 
 [output_config]
 epsg = 32631
 resolution = 100
 unit = "mm/yr"
-last_x_years = 50
+last_x_years = 30
 next_x_years = 30
+clip_to_areas = true
 
 
 [gia]
@@ -80,15 +81,22 @@ invert = false
 stats = false
 
 [[mining.rasters]]
-path = "p:/1204421-kpp-benokust/2026/03-morfologiekust/Bodemdaling/Data TNO Roholl/Bergen-gebied_tot2026/Bergen-gebied_tot2026.nc"
+path = "P:/1204421-kpp-benokust/2026/03-morfologiekust/Bodemdaling/Data TNO Roholl/Bodemdaling_kustgebied_olie&gas_TNO/Combined_vanaf1996tot2026.nc"
 epsg = 28992
-units = "cm/50yr"
-data_var = "Bergen-gebied_tot2026"
+units = "m/30yr"
+data_var = "Combined_vanaf1996tot2026"
 invert = false
 
 [[mining.rasters]]
-path = "p:/1204421-kpp-benokust/2026/03-morfologiekust/Bodemdaling/Data TNO Roholl/Bergen-gebied_tot2026/Bergen-gebied_vanaf2026.nc"
+path = "P:/1204421-kpp-benokust/2026/03-morfologiekust/Bodemdaling/Data TNO Roholl/Bodemdaling_kustgebied_olie&gas_TNO/Combined_vanaf2026tot2056.nc"
 epsg = 28992
-units = "cm/30yr"
-data_var = "Bergen-gebied_vanaf2026"
+units = "m/30yr"
+data_var = "Combined_vanaf2026tot2056"
+invert = false
+
+[[mining.rasters]]
+path = "P:/1204421-kpp-benokust/2026/03-morfologiekust/Bodemdaling/Data TNO Roholl/Bodemdaling_kustgebied_olie&gas_TNO/Combined_tot2026.nc"
+epsg = 28992
+units = "m/100yr"
+data_var = "Combined_tot2026"
 invert = false

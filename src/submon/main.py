@@ -69,10 +69,10 @@ if __name__ == "__main__":
     # mining with uncertainty
     mining_last_x_years = stats.predefined_statistics(
         mining_da_last_x_years, {"mean": 1.0, "min": 0.75, "max": 1.25}
-    )
+    ).fillna(0)
     mining_next_x_years = stats.predefined_statistics(
         mining_da_next_x_years, {"mean": 1.0, "min": 0.50, "max": 1.50}
-    )
+    ).fillna(0)
 
     # total subsidence with mining uncertainty
     subsidence_last_x_years = rasters.sum_datasets_per_datavar(
@@ -91,6 +91,13 @@ if __name__ == "__main__":
     logger.info("Exporting static subsidence components to GeoTIFF...")
     Path(config["output_paths"]["base"]).mkdir(parents=True, exist_ok=True)
 
+    clip_to_areas = config["output_config"]["clip_to_areas"]
+    if clip_to_areas:
+        areas = subsidence_areas.geometry.union_all()
+        logger.info("Clipping output rasters to investigated areas")
+    else:
+        logger.info("Exporting full rasters")
+
     for key, obj in [
         ("gia", gia_stats),
         ("tectonic", tect_stats),
@@ -104,8 +111,13 @@ if __name__ == "__main__":
         out_dir.mkdir(parents=True, exist_ok=True)
 
         for datavar in obj.data_vars:
+
+            da = obj[datavar]
+            
+            if clip_to_areas:
+                da = da.rio.clip([areas], crs=subsidence_areas.crs, drop=True, all_touched=True)
             to_geotiff(
-                obj[datavar],
+                da,
                 out_dir / f"{key}_{datavar}.tif",
                 compress=True,
             )
@@ -116,11 +128,13 @@ if __name__ == "__main__":
     # empty list for every investageted area, to be filled with zonal statistics and volumes
     rows = []
     shape_rows = []
+
     # loop over investigated areas and calculate zonal statistics for each subsidence component, including mining uncertainty scenarios, and calculate volumes based on mean subsidence and area. Save results to Excel.
     for _, row in subsidence_areas.iterrows():
         geom = row.geometry
         gebied = row["Gebied"]
         area = geom.area
+        number = row["Number"]
 
         logger.info(f"Processing area '{gebied}'")
         # Clip all datasets to the geometry
@@ -188,6 +202,7 @@ if __name__ == "__main__":
         # Append all results to rows list for Excel and shape_rows for shapefile
         rows.append(
             {
+                "Number": number,
                 "Gebied": gebied,
                 "Oppervlakte_m2": area,
                 "GIA_mm/yr": utils.format_for_output_table(
@@ -323,6 +338,8 @@ if __name__ == "__main__":
         # For the shapefile, we want to keep the volume numbers as floats.
         shape_rows.append(
             {
+                
+                "Number": number,
                 "Gebied": gebied,
                 "Oppervlakte": area,
                 f"Total_Volume_last_{last_x_years}_Mm3": total_last_x_years_subsidence
@@ -346,6 +363,9 @@ if __name__ == "__main__":
         shape_rows, geometry=subsidence_areas.geometry, crs=subsidence_areas.crs
     )
 
+    df = df.sort_values(by="Number").reset_index(drop=True)
+    gdf = gdf.sort_values(by="Number").reset_index(drop=True)
+
     # Save to Excel
     logger.info("Saving zonal statistics and volumes to output Excel...")
     df.to_excel(
@@ -365,3 +385,4 @@ if __name__ == "__main__":
     )
 
     logger.info("Done!")
+
