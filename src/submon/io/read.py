@@ -49,7 +49,7 @@ def load_subsidence_areas(config: dict) -> gpd.GeoDataFrame:
 
 def load_subsidence_rasters(
     config: dict, target_grid: xr.DataArray
-) -> dict[SubsidenceRaster]:
+) -> dict[str, xr.Dataset]:
     """
     Load subsidence rasters from disk based on a configuration dictionary, applying
     coordinate reference system and unit conversions as specified.
@@ -93,19 +93,23 @@ def load_subsidence_rasters(
                 raster_info["epsg"],
                 config["output_config"]["epsg"],
                 target_grid=target_grid,
+                invert=raster_info["invert"],
+                data_var=raster_info.get("data_var", None),
                 **raster_info.get("reader_kwargs", {}),
             )
-            raster_object = rasters.SubsidenceRaster(
-                da=raster,
-                source_path=raster_info["path"],
-                subsidence_type=source,
-                statistic_type=raster_info.get("stat", None),
-                original_crs=CRS.from_user_input(raster_info["epsg"]),
-                converted_crs=CRS.from_user_input(config["output_config"]["epsg"]),
-                original_units=raster_info["units"],
-                converted_units=config["output_config"]["unit"],
+
+            # Add metadata attributes to the DataArray for traceability
+            raster.attrs["source_path"] = raster_info["path"]
+            raster.attrs["subsidence_type"] = source
+            raster.attrs["statistic_type"] = raster_info.get("stat", None)
+            raster.attrs["original_crs"] = CRS.from_user_input(raster_info["epsg"])
+            raster.attrs["converted_crs"] = CRS.from_user_input(
+                config["output_config"]["epsg"]
             )
-            data[source].append(raster_object)
+            raster.attrs["original_units"] = raster_info["units"]
+            raster.attrs["converted_units"] = config["output_config"]["unit"]
+
+            data[source].append(raster)
 
     return data
 
@@ -117,6 +121,8 @@ def load_and_convert_raster(
     from_epsg: int | str | CRS,
     to_epsg: int | str | CRS,
     target_grid: xr.DataArray = None,
+    invert: bool = True,
+    data_var: str = None,
     **kwargs,
 ) -> xr.DataArray:
     """
@@ -155,6 +161,11 @@ def load_and_convert_raster(
             path,
             gridded=kwargs.get("gridded", True),
         )
+    elif Path(path).suffix in [".nc"]:
+        if data_var is None:
+            da = xr.open_dataarray(path, **kwargs).squeeze()
+        else:
+            da = xr.open_dataset(path, **kwargs)[data_var].squeeze()
     else:
         da = rioxarray.open_rasterio(path, **kwargs).squeeze()
 
@@ -168,6 +179,15 @@ def load_and_convert_raster(
     factor = units.calculate_dzdt_factor(dzdt_from, dzdt_to)
     da *= factor
 
-    da = da.rio.write_nodata(np.nan, inplace=True)
+    if invert:
+        da *= -1
+
+    if "_FillValue" in da.attrs and da.attrs["_FillValue"] is not None:
+        da = da.where(da != da.attrs["_FillValue"], other=np.nan)
+
+    extreme_threshold = -1e20
+    da = da.where(da > extreme_threshold, other=np.nan)
+    da = da.where(np.isfinite(da), other=np.nan)
+    da = da.rio.write_nodata(np.nan, inplace=False)
 
     return da
